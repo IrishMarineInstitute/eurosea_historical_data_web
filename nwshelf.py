@@ -14,7 +14,7 @@ def gregorian_to_datetime(time):
 
 def NWSHELF_Deenish_profile(t0, t1):
     
-    OUTPUT_DIRECTORY, OUTPUT_FILENAME = 'static/', 'nwshelf.nc'
+    OUTPUT_DIRECTORY, OUTPUT_FILENAME = 'static/', 'NWSHELF.nc'
     # Remove file if older exists
     if os.path.exists(OUTPUT_DIRECTORY + OUTPUT_FILENAME):
         os.remove(OUTPUT_DIRECTORY + OUTPUT_FILENAME)
