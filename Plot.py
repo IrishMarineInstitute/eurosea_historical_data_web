@@ -182,10 +182,10 @@ def Plot_Request(colour, temperature):
     Plot_chla_anom(lon, lat, time, ANOM)
                 
     
-def Plot_Deenish_temperature(ax, DBO, time, T):    
+def Plot_Deenish_temperature(ax, DBO, time, T, l4=None):    
     ''' Plot Deenish Island temperature series highlighting Marine Heat Spikes '''
     
-    l1, = ax.plot(time, T, linewidth=.5, label='Buoy')
+    l1, = ax.plot(time, T, linewidth=1, label='Buoy', color='b')
     ax.set_title('Temperature at Deenish Island', fontsize=6)
     ax.set_ylabel('$^\circ$C', fontsize=6)
     ax.grid()
@@ -198,7 +198,10 @@ def Plot_Deenish_temperature(ax, DBO, time, T):
     ax.fill_between(time, 17, 19, color='y', alpha=.3)
     ax.fill_between(time, 19, 50, color='r', alpha=.3)
     ax.set_ylim([y0, y1])
-    ax.legend(handles=[l1, l2, l3], fontsize=4)
+    if l4:
+        ax.legend(handles=[l1, l2, l3, l4], fontsize=4)
+    else:
+        ax.legend(handles=[l1, l2, l3], fontsize=4)
     fill_mhw(ax, [np.datetime64(i) for i in time], T, C, DBO.Deenish_pc90)
     
     
@@ -224,11 +227,14 @@ def fill_mhw(ax, x1, y1, x2, y2):
     ax.fill_between(xfill, y1fill, y2fill, where=y1fill > y2fill, interpolate=True, color='crimson', alpha=0.9)
 
     
-def single_time_series_plot(ax, time, var, y):
+def single_time_series_plot(ax, time, var, y, color=None):
     
     trange = time[-1] - time[0]
     
-    l1, = ax.plot(time, y, linewidth=.5, label='Buoy')    
+    if color:
+        line, = ax.plot(time, y, linewidth=.5, label='Model', color=color)    
+    else:
+        line, = ax.plot(time, y, linewidth=.5, label='Buoy')    
     ax.set_title(f'{names[var]} at Deenish Island', fontsize=6)        
     ax.set_ylabel(units[var], fontsize=6)  
     if var == 'chl': ax.set_ylim([0, max(y) + .1])    
@@ -243,6 +249,7 @@ def single_time_series_plot(ax, time, var, y):
         ax.xaxis.set_minor_formatter(mdates.DateFormatter("%d %H:%M")) 
     
     ax.tick_params(axis='both', labelsize=4)
+    return line
     
 def yy_plot(ax, time, var1, var2, y1, y2):
     
@@ -274,11 +281,33 @@ def yy_plot(ax, time, var1, var2, y1, y2):
     ax.tick_params(axis='both', labelsize=4)
     ax2.tick_params(axis='both', labelsize=4)
     
+    
+def Plot_Deenish_NWSHELF_profile(ax, time, temp):
+    ''' Plot time series of temperature profile in Deenish Island '''
+    
+    for y in temp:
+        line = single_time_series_plot(ax, time, 'temp', y, color='k')
+    return line
+        
 
-def Plot_Deenish_user_selection(buoy, DBO):
+def Plot_Deenish_user_selection(buoy, DBO, time, temp):
     ''' Generate Deenish Island Data Portal user's requested image '''
     
-    fig, axes = plt.subplots(4, 2)
+    # fig, axes = plt.subplots(4, 2)
+    fig = plt.figure(constrained_layout=True)
+    
+    axes = fig.subplot_mosaic(
+    """
+    AB
+    CD
+    EF
+    GH
+    II
+    """
+    )
+    
+    axis = iter(axes)
+    
     W, H = fig.get_size_inches()
     fig.set_size_inches(W, 2*H); 
     fig.tight_layout()
@@ -289,10 +318,10 @@ def Plot_Deenish_user_selection(buoy, DBO):
         [('temp',),     ('temp', 'DOX')],
         [('temp', 'chl'), ('temp', 'salt')],
         ], dtype=object)
-    
+            
     for j in range(2):
         for i in range(4):            
-            ax, var = axes[i, j], params[i, j]
+            ax, var = axes[next(axis)], params[i, j]
             
             if len(var) == 1:    # Single time series plot
             
@@ -304,6 +333,14 @@ def Plot_Deenish_user_selection(buoy, DBO):
             elif len(var) == 2:  # YY plot
                 yy_plot(ax, buoy['time'], var[0], var[1], 
                         buoy[var[0]], buoy[var[1]])
+                
+    # Plot Northwest Shelf temperature profile
+    line = Plot_Deenish_NWSHELF_profile(axes[next(axis)], time, temp.T)
+    Plot_Deenish_temperature(axes['I'], DBO, buoy['time'], buoy['temp'], l4=line)
+    axes['I'].set_title('Temperature profile at Deenish Island from Northwest Shelf model',
+                        fontsize=6)
+    axes['I'].set_xlabel('BLUE: Buoy measurements. BLACK: Model predictions at multiple depths, from top to bottom: 0, 3, 5, 10, 15, 20, 25, 30 [m]', 
+                         fontsize=5)
                 
     # Save figure
     T = datetime.now().strftime('%Y%m%d%H%M%S')

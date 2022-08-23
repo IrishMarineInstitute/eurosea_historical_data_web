@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, send_file
 from datetime import date, datetime, timedelta
+from nwshelf import NWSHELF_Deenish_profile
 from CA import oceancolour
 from SST import SST_request
 from pytz import timezone
@@ -26,13 +27,15 @@ def web(DBO):
         if request.method == 'POST':
             
             if 'Display' in request.form:                                
-                sub, t0, t1 = subs(DBO, request)
+                sub, t0, t1 = subs(DBO, request)                
+                # Read temperature profile from MetOffice's Northwest Shelf model
+                time, temp = NWSHELF_Deenish_profile(t0, t1)
                 # Remove older images
                 images = glob('static/Deenish*')
                 for file in images:
                     os.remove(file)                                              
                 # Plot time series
-                name = Plot.Plot_Deenish_user_selection(sub, DBO)  
+                name = Plot.Plot_Deenish_user_selection(sub, DBO, time, temp)                  
                 # Resize
                 I = Image.open(f'static/{name}').resize((1520, 2267), Image.ANTIALIAS)
                 I.save(f'static/{name}', quality=95)   

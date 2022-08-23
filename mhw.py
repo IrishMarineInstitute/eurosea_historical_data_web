@@ -25,11 +25,6 @@ def today_index_model_sat(platform, timedelta):
     day = platform[0] + datetime.timedelta(timedelta)    
     datetime_object = datetime.datetime(day.year, day.month, day.day, 9)
     
-    if datetime_object not in platform:
-        print(datetime_object)
-        print(platform)
-        raise ValueError('datetime is not in platform')
-    
     current_day_time_index = np.where(platform==datetime_object)[0][0]
         
     return current_day_time_index, datetime_object

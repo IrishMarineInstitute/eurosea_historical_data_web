@@ -51,21 +51,44 @@ def motu_option_parser(script_template, usr, pwd, output_directory, output_filen
     return dictionary
 
 def motu(SERVICE, PRODUCT, OUTPUT_DIRECTORY, OUTPUT_FILENAME, 
-         xmin, xmax, ymin, ymax, idate, edate, variable):
+         xmin, xmax, ymin, ymax, idate, edate, variable, tipo):
     
-    # Set template
-    script_template = ('python -m motuclient '
-                       '--motu https://my.cmems-du.eu/motu-web/Motu '
-                       f'--service-id {SERVICE} '
-                       f'--product-id {PRODUCT} '
-                       f'--longitude-min {xmin} --longitude-max {xmax} '
-                       f'--latitude-min {ymin} --latitude-max {ymax} '
-                       f'--date-min "{idate}" --date-max "{edate}" ' 
-                       f'--variable {variable} '
-                       '--out-dir <OUTPUT_DIRECTORY> '
-                       '--out-name <OUTPUT_FILENAME> '
-                       '--user <USERNAME> --pwd <PASSWORD>'
-                       )
+    if SERVICE == 'OCEANCOLOUR_ATL_BGC_L4_MY_009_118-TDS':
+        
+        # Set template
+        script_template = ('python -m motuclient '
+                           f'--motu https://{tipo}.cmems-du.eu/motu-web/Motu '
+                           f'--service-id {SERVICE} '
+                           f'--product-id {PRODUCT} '
+                           f'--longitude-min {xmin} --longitude-max {xmax} '
+                           f'--latitude-min {ymin} --latitude-max {ymax} '
+                           f'--date-min "{idate}" --date-max "{edate}" ' 
+                           f'--variable {variable} '
+                           '--out-dir <OUTPUT_DIRECTORY> '
+                           '--out-name <OUTPUT_FILENAME> '
+                           '--user <USERNAME> --pwd <PASSWORD>'
+                           )
+    
+    elif SERVICE == 'NORTHWESTSHELF_ANALYSIS_FORECAST_PHY_004_013-TDS':
+        
+        # Set template
+        script_template = ('python -m motuclient '
+                           f'--motu https://{tipo}.cmems-du.eu/motu-web/Motu '
+                           f'--service-id {SERVICE} '
+                           f'--product-id {PRODUCT} '
+                           f'--longitude-min {xmin} --longitude-max {xmax} '
+                           f'--latitude-min {ymin} --latitude-max {ymax} '
+                           f'--date-min "{idate}" --date-max "{edate}" ' 
+                           '--depth-min 0 --depth-max 30 '
+                           f'--variable {variable} '
+                           '--out-dir <OUTPUT_DIRECTORY> '
+                           '--out-name <OUTPUT_FILENAME> '
+                           '--user <USERNAME> --pwd <PASSWORD>'
+                           )
+        
+    else:
+        
+        raise ValueError('Unexpected service has been requested!')
 
     # Prepare request
     data_request = motu_option_parser(script_template, 

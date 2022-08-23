@@ -24,7 +24,7 @@ def oceancolour(edate):
     idate = (dia - timedelta(days=73)).strftime('%Y-%m-%d %H:%M:%S')
         
     motu(SERVICE, PRODUCT, OUTPUT_DIRECTORY, OUTPUT_FILENAME, 
-         -11.6, -8, 50, 52.8, idate, edate, 'CHL')
+         -11.6, -8, 50, 52.8, idate, edate, 'CHL', 'my')
     
     with Dataset(OUTPUT_DIRECTORY + OUTPUT_FILENAME) as nc:
         # Read coordinates

@@ -63,8 +63,7 @@ def SST_request(DBO, dia):
     
     # Marine Heat Waves
     MHS, MHW, MHT = mhw_processing(lon[x0 : x1], lat[y0 : y1], np.array(time), SST, pc90)
-    print(MHT)
-             
+                 
     return lon[x0 : x1], lat[y0 : y1], time[-1], SST[-1, :, :], ANOM, MHS, MHW, MHT
     
 def copernicusmarine_datastore(dataset, username, password):    

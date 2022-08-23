@@ -44,8 +44,7 @@ def Deenish():
         var = {
             'time': [], 'temp': [], 'salt': [], 'pH': [], 'chl':  [], 'DOX':  []       
             }           
-    
-    print('\n')
+        
     for file in local:
         tempo = datetime.strptime(file[0:13], '%Y%m%dT%H%M')
         if not tempo.hour and not tempo.minute:
