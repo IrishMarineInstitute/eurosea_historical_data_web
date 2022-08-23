@@ -1,0 +1,15 @@
+flask>=2.2.2
+pytz>=2022.1
+numpy>=1.23.1
+Pillow>=9.2.0
+netCDF4>=1.6.0
+cftime>=1.6.1
+pydap>=3.2.2
+xarray>=2022.6.0
+cartopy
+matplotlib>=3.5.2
+cmocean>=2.0
+geopy>=2.2.0
+paramiko>=2.11.0
+pysftp>=0.2.9
+motuclient
