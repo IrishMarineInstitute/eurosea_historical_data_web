@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from geopy.distance import distance
 from PIL import Image
 from urllib.request import urlopen, Request
+from math import nan
 import io
 
 font = {'size' : 12}; matplotlib.rc('font', **font)
@@ -355,7 +356,7 @@ def plot_velocity(ax, t, u, v):
     
     # Get speed
     speed = (u**2 + v**2)**.5; f = .03*speed**-1    
-    value = round(speed) + 80
+    value = round(speed)
     
     ax.arrow(.5, .5, f*u, f*v, color='tab:gray', 
         head_width=.08, head_length=.07)
@@ -369,20 +370,32 @@ def plot_velocity(ax, t, u, v):
     else:
         ax.text(.47, .4970, '%d' % value, fontsize=18)
     ax.text(.48, .47, t.strftime('%H:%M'), fontsize=9)
-    ax.axis('off'); 
+    
     ax.axis('equal')
     ax.set_xlim([.4, .6])
     ax.set_ylim([.4, .6])
     
 def Plot_Arrows(u, v, time):
+    fecha = time[0].strftime('%d-%b-%Y')
     fig, axes = plt.subplots(12, 12, figsize=(24, 24))
     c = -1
     for i in range(12):
         for j in range(12):
-            c += 1
-            ax = axes[i, j]
-            plot_velocity(ax, time[c], u[c], v[c])
+            c += 1; ax = axes[i, j]; ax.axis('off')
+            if c == 3:
+                ax.set_title(f'   Surface currents (cm/s) for {fecha}', fontsize=48)                            
+            
+            try:
+                plot_velocity(ax, time[c], u[c], v[c])
+            except ValueError:
+                continue
+            except IndexError:
+                continue
+            
     fig.tight_layout()
-    plt.savefig('Deenish-Arrows.png', dpi=300, bbox_inches='tight')
-    return 'Deenish-Arrows.jpg'
+    now = datetime.now().strftime('%Y%m%d%H%M%S')
+    name = f'Deenish-Arrows-{now}.jpg'
+    plt.savefig(f'static/{name}', 
+                dpi=300, bbox_inches='tight')
+    return name 
             

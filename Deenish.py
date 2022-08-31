@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.parser import parse
 from paramiko import SSHException
+from numpy import nan as NaN
+import numpy as np
 import pickle
 import os
 import pysftp
@@ -52,11 +54,46 @@ def Deenish():
             print('Deenish Island: Reading ' + tempo.strftime('%d-%b-%Y'))
         read_xml_file(localpath + '/' + file, var)
         
+    # Apply a quality control (mask missing data)
+    var = quality_control(var)    
+        
     # Update pickle file
     with open('Deenish.pkl', 'wb') as file:
         pickle.dump(var, file)
         
     return var
+
+def quality_control(var):
+    
+    # Mask missing data
+    for key in var.keys():
+        var[key] = [i if i != 68. else NaN for i in var[key]]
+        
+    # Initialize dictionary of output variables    
+    new = {
+        'time': [], 'temp': [], 'salt': [], 'pH': [], 
+        'chl':  [], 'DOX':  [], 'u':    [], 'v':  [],
+        }   
+    
+    time = np.array(var['time'])
+    #  Get start and end available dates
+    idate, edate = time[0], time[-1]
+    while idate <= edate:
+        # Make sure all times between idate and edate are in the new dictionary
+        new['time'].append(idate)
+        try: 
+            i = np.where(idate == time)[0][0] # If time exists in dataset...
+            for key in new.keys():
+                if key != 'time':
+                    new[key].append(var[key][i]) # ... append existing data, of course
+        except IndexError: # If time does not exist in dataset...
+            for key in new.keys():
+                if key != 'time':
+                    new[key].append(NaN) # ... append NaN
+        idate += timedelta(minutes=10)
+            
+    return new
+    
 
 def read_xml_file(file, var):
     ''' Read an *.xml file and updates the fields of interest '''

@@ -7,6 +7,7 @@ from pytz import timezone
 import numpy as np
 from glob import glob
 from PIL import Image
+from math import atan2, pi
 import Plot
 import os
 
@@ -27,25 +28,37 @@ def web(DBO):
         if request.method == 'POST':
             
             if 'Display' in request.form:                                
-                sub, t0, t1 = subs(DBO, request)                
-                # Read temperature profile from MetOffice's Northwest Shelf model
-                time, temp = NWSHELF_Deenish_profile(t0, t1)
-                # Date for surface currents information
-                u, v, t = surface_currents_request(DBO, request)                
+                sub, t0, t1 = subs(DBO, request)  
                 # Remove older images
                 images = glob('static/Deenish*')
                 for file in images:
-                    os.remove(file)                                              
+                    os.remove(file) 
+                # Date for surface currents information
+                datestring = ''
+                if request.form.get('times'):
+                    datestring = request.form.get('times')
+                    # Get date
+                    fecha = datetime.strptime(datestring, '%Y-%m-%d')                         
+                    # Get currents for the selected date
+                    u, v, t = surface_currents_request(DBO, fecha)                      
+                    # Plot surface currents
+                    arrows = Plot.Plot_Arrows(u, v, t)                                        
+                    # Resize
+                    A = Image.open(f'static/{arrows}').resize((1520, 1520), Image.ANTIALIAS)
+                    A.save(f'static/{arrows}', quality=95)
+                else:
+                    arrows = 'blank.png'                              
+                # Read temperature profile from MetOffice's Northwest Shelf model
+                time, temp = NWSHELF_Deenish_profile(t0, t1)                               
                 # Plot time series
-                name = Plot.Plot_Deenish_user_selection(sub, DBO, time, temp)                  
-                # Plot surface currents
-                arrows = Plot.Plot_Arrows(u, v, t)
+                name = Plot.Plot_Deenish_user_selection(sub, DBO, time, temp) 
                 # Resize
                 I = Image.open(f'static/{name}').resize((1520, 2267), Image.ANTIALIAS)
-                I.save(f'static/{name}', quality=95)   
+                I.save(f'static/{name}', quality=95)                
                 # Reload page with new figure
                 return render_template('index.html', times=times, graph=name,
-                    arrows=arrows, time0=t0.date(), time1=t1.date()-timedelta(days=1))                 
+                    arrows=arrows, time0=t0.date(), time1=t1.date()-timedelta(days=1),
+                    time=datestring)                 
                 
             elif 'Download' in request.form:
                 sub, _, _ = subs(DBO, request)
@@ -60,7 +73,7 @@ def web(DBO):
          
         else:
             return render_template('index.html', times=times, graph='blank.png',
-                arrows='blank.png', time0=times[0], time1=times[-1]) 
+                arrows='blank.png', time0=times[0], time1=times[-1], time='') 
         
     
     @app.route('/swirl', methods=['GET', 'POST'])
@@ -132,19 +145,19 @@ def fix_times(DBO, t0, t1):
     return t0, t1
 
 
-def surface_currents_request(DBO, request):
+def surface_currents_request(DBO, fecha):
     ''' Subset time and u, v components of current velocity for the selected date '''
     
     # Get selected date as a timezone-aware datetime
-    fecha = timezone('UTC').localize(request.form.get('times').strptime('%Y-%m-%d'))
-    
+    fecha = timezone('UTC').localize(fecha)
+        
     # Find corresponding time index in the Deenish buoy dataset
-    index = np.where(fecha == DBO['time'])[0][0]
+    index = np.where(fecha == np.array(DBO.buoy['time']))[0][0]
     
     # Get times for the selected date
-    t = DBO['time'][index : index + 144]    
+    t = DBO.buoy['time'][index : index + 144]    
     # Subset u, v components of velocity for the selected date
-    u, v = DBO['u'][index : index + 144], DBO['v'][index : index + 144]
+    u, v = DBO.buoy['u'][index : index + 144], DBO.buoy['v'][index : index + 144]
     
     return u, v, t
 
@@ -172,7 +185,7 @@ def to_csv(sub):
     f = 'static/Deenish-' + datetime.now().strftime('%Y%m%d%H%M%S') + '.csv'
     
     with open(f, 'w') as csvfile:       
-        csvfile.write('Date\tTemperature (°C)\tSalinity\tpH\tRFU\tDissolved Oxygen Saturation (%)\n')
+        csvfile.write('Date\tTemperature (°C)\tSalinity\tpH\tRFU\tDissolved Oxygen Saturation (%)\tSpeed (cm/s)\tDirection\n')
         for i, time in enumerate(sub['time']):
             t = time.strftime('%d-%b-%Y %H:%M')
             T = sub['temp'][i]
@@ -180,7 +193,15 @@ def to_csv(sub):
             p = sub['pH'][i]
             C = sub['chl'][i]
             O = sub['DOX'][i]
-            l = '%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (t, T, S, p, C, O)
+            u, v = sub['u'][i], sub['v'][i]
+            V = (u**2 + v**2)**.5
+            D = 90 - atan2(v, u) * 180 / pi
+            if D < 0: D += 360
+            
+            try:
+                l = '%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.1f\t%.03d\n' % (t, T, S, p, C, O, V, D)
+            except ValueError:
+                l = '%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.1f\t%f\n' % (t, T, S, p, C, O, V, D)
             csvfile.write(l)
         
     return f

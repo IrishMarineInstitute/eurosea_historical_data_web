@@ -14,9 +14,9 @@ class Deenish_Buoy_Observatory:
         self.buoy = Deenish()     
       
         ''' Read climatology '''
-        # self.clim_x, self.clim_y, self.clim_time, self.seas, self.pc90, \
-        # self.Deenish_time, self.Deenish_seas, self.Deenish_pc90 = \
-        # climatology(self, 'Climatology/MUR-Climatology.nc', -10.2122, 51.7431)
+        self.clim_x, self.clim_y, self.clim_time, self.seas, self.pc90, \
+        self.Deenish_time, self.Deenish_seas, self.Deenish_pc90 = \
+        climatology(self, 'Climatology/MUR-Climatology.nc', -10.2122, 51.7431)
           
         
 def main():
@@ -26,6 +26,6 @@ def main():
         
 if __name__ == '__main__':
     
-    DBO = main()
+    DBO = main()   
     # Launch webpage
     web(DBO)
