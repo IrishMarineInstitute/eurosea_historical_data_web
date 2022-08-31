@@ -69,6 +69,16 @@
                     {{time1}}
                 </option>
             </select>
+            
+            <p style="margin-right: 5px"> Select date for surface current data: </p>     
+            <select name="times" method="GET"> 
+                {% for time in times %} 
+                <option value= "{{time}}" SELECTED>{{time}}</option>" 
+                {% endfor %} 
+                <option selected="selected">
+                    {{time}}
+                </option>
+            </select>
         
             <input type="submit" value="Display"  name="Display"  style="margin-left: 20px" />
             
@@ -77,6 +87,8 @@
             <p style="margin-right: 5px"> Please wait about 1 minute after the request is submitted. </p>    
                                    
             <img src="{{url_for('static', filename=graph)}}" />
+            
+            <img src="{{url_for('static', filename=arrows)}}" />
             
             
         </form>

@@ -350,3 +350,39 @@ def Plot_Deenish_user_selection(buoy, DBO, time, temp):
     plt.close(fig) 
     
     return imagename
+
+def plot_velocity(ax, t, u, v):
+    
+    # Get speed
+    speed = (u**2 + v**2)**.5; f = .03*speed**-1    
+    value = round(speed) + 80
+    
+    ax.arrow(.5, .5, f*u, f*v, color='tab:gray', 
+        head_width=.08, head_length=.07)
+    
+    ax.add_patch(plt.Circle((.5, .5), .050, color='tab:gray'))
+    ax.add_patch(plt.Circle((.5, .5), .040, color='w'))
+    if value < 10:
+        ax.text(.49, .4985, '%d' % value, fontsize=18)
+    elif value < 100:
+        ax.text(.48, .4975, '%d' % value, fontsize=18)
+    else:
+        ax.text(.47, .4970, '%d' % value, fontsize=18)
+    ax.text(.48, .47, t.strftime('%H:%M'), fontsize=9)
+    ax.axis('off'); 
+    ax.axis('equal')
+    ax.set_xlim([.4, .6])
+    ax.set_ylim([.4, .6])
+    
+def Plot_Arrows(u, v, time):
+    fig, axes = plt.subplots(12, 12, figsize=(24, 24))
+    c = -1
+    for i in range(12):
+        for j in range(12):
+            c += 1
+            ax = axes[i, j]
+            plot_velocity(ax, time[c], u[c], v[c])
+    fig.tight_layout()
+    plt.savefig('Deenish-Arrows.png', dpi=300, bbox_inches='tight')
+    return 'Deenish-Arrows.jpg'
+            

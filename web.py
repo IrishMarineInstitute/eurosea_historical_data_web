@@ -30,18 +30,22 @@ def web(DBO):
                 sub, t0, t1 = subs(DBO, request)                
                 # Read temperature profile from MetOffice's Northwest Shelf model
                 time, temp = NWSHELF_Deenish_profile(t0, t1)
+                # Date for surface currents information
+                u, v, t = surface_currents_request(DBO, request)                
                 # Remove older images
                 images = glob('static/Deenish*')
                 for file in images:
                     os.remove(file)                                              
                 # Plot time series
                 name = Plot.Plot_Deenish_user_selection(sub, DBO, time, temp)                  
+                # Plot surface currents
+                arrows = Plot.Plot_Arrows(u, v, t)
                 # Resize
                 I = Image.open(f'static/{name}').resize((1520, 2267), Image.ANTIALIAS)
                 I.save(f'static/{name}', quality=95)   
                 # Reload page with new figure
-                return render_template('index.html', times=times, 
-                    graph=name, time0=t0.date(), time1=t1.date()-timedelta(days=1))                 
+                return render_template('index.html', times=times, graph=name,
+                    arrows=arrows, time0=t0.date(), time1=t1.date()-timedelta(days=1))                 
                 
             elif 'Download' in request.form:
                 sub, _, _ = subs(DBO, request)
@@ -56,7 +60,7 @@ def web(DBO):
          
         else:
             return render_template('index.html', times=times, graph='blank.png',
-                                   time0=times[0], time1=times[-1]) 
+                arrows='blank.png', time0=times[0], time1=times[-1]) 
         
     
     @app.route('/swirl', methods=['GET', 'POST'])
@@ -127,6 +131,22 @@ def fix_times(DBO, t0, t1):
     
     return t0, t1
 
+
+def surface_currents_request(DBO, request):
+    ''' Subset time and u, v components of current velocity for the selected date '''
+    
+    # Get selected date as a timezone-aware datetime
+    fecha = timezone('UTC').localize(request.form.get('times').strptime('%Y-%m-%d'))
+    
+    # Find corresponding time index in the Deenish buoy dataset
+    index = np.where(fecha == DBO['time'])[0][0]
+    
+    # Get times for the selected date
+    t = DBO['time'][index : index + 144]    
+    # Subset u, v components of velocity for the selected date
+    u, v = DBO['u'][index : index + 144], DBO['v'][index : index + 144]
+    
+    return u, v, t
 
 def subset(buoy, t0, t1):
     ''' Subset buoy data for the requested time period '''

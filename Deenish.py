@@ -42,7 +42,8 @@ def Deenish():
     else:       
         # Initialize dictionary of output variables    
         var = {
-            'time': [], 'temp': [], 'salt': [], 'pH': [], 'chl':  [], 'DOX':  []       
+            'time': [], 'temp': [], 'salt': [], 'pH': [], 
+            'chl':  [], 'DOX':  [], 'u':    [], 'v':  [],
             }           
         
     for file in local:
@@ -76,6 +77,10 @@ def read_xml_file(file, var):
                 var['pH'].append(find_value(f.readline()))
             elif 'Descr="Chlorophyll RFU"' in line:
                 var['chl'].append(rfu_to_c(find_value(f.readline())))
+            elif 'Descr="East"' in line:
+                var['u'].append(find_value(f.readline()))
+            elif 'Descr="North"' in line:
+                var['v'].append(find_value(f.readline()))
             # Read next line
             line = f.readline()
     
