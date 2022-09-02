@@ -10,17 +10,23 @@ from datetime import datetime, timedelta
 from geopy.distance import distance
 from PIL import Image
 from urllib.request import urlopen, Request
-from math import nan
 import io
 
 font = {'size' : 12}; matplotlib.rc('font', **font)
 
-units = {'temp': '$^\circ$C', 'salt': '', 'pH': '', 'chl': '', 'DOX': '%'}  
-names = {'temp': 'Temperature', 
-         'salt': 'Salinity',
+units = {'Temperature': '$^\circ$C', 
+         'Salinity': '', 
+         'pH': '', 
+         'RFU': '', 
+         'Oxygen Saturation': '%',
+         'Chlorophyll-a': '$mg m^{-3}$'}  
+
+names = {'Temperature': 'Temperature', 
+         'Salinity': 'Salinity',
          'pH': 'pH',
-         'chl': 'Reference Fluorescence Units',
-         'DOX': 'Oxygen saturation'}
+         'RFU': 'Reference Fluorescence Units',
+         'Oxygen Saturation': 'Oxygen saturation',
+         'Chlorophyll-a': 'Chlorophyll-a concentration'}
 
 
 def image_spoof(DBO, tile):
@@ -183,7 +189,7 @@ def Plot_Request(colour, temperature):
     Plot_chla_anom(lon, lat, time, ANOM)
                 
     
-def Plot_Deenish_temperature(ax, DBO, time, T, l4=None):    
+def Plot_Deenish_temperature(ax, seas, pc90, climtime, time, T, l4=None):    
     ''' Plot Deenish Island temperature series highlighting Marine Heat Spikes '''
     
     l1, = ax.plot(time, T, linewidth=1, label='Buoy', color='b')
@@ -192,9 +198,9 @@ def Plot_Deenish_temperature(ax, DBO, time, T, l4=None):
     ax.grid()
     ax.set_xlim([min(time), max(time)])
     trange = time[-1] - time[0]
-    C = [np.datetime64(i) for i in DBO.Deenish_time]
-    l2, = ax.plot(C, DBO.Deenish_seas, color='C2', linewidth=.5, label='Climatology')
-    l3, = ax.plot(C, DBO.Deenish_pc90, color='C3', linewidth=.5, label='90-th pctl')
+    C = [np.datetime64(i) for i in climtime]
+    l2, = ax.plot(C, seas, color='C2', linewidth=.5, label='Climatology')
+    l3, = ax.plot(C, pc90, color='C3', linewidth=.5, label='90-th pctl')
     y0, y1 = ax.get_ylim()
     ax.fill_between(time, 17, 19, color='y', alpha=.3)
     ax.fill_between(time, 19, 50, color='r', alpha=.3)
@@ -203,7 +209,7 @@ def Plot_Deenish_temperature(ax, DBO, time, T, l4=None):
         ax.legend(handles=[l1, l2, l3, l4], fontsize=4)
     else:
         ax.legend(handles=[l1, l2, l3], fontsize=4)
-    fill_mhw(ax, [np.datetime64(i) for i in time], T, C, DBO.Deenish_pc90)
+    fill_mhw(ax, [np.datetime64(i) for i in time], T, C, pc90)
     
     
     if trange > timedelta(days=4):
@@ -238,9 +244,19 @@ def single_time_series_plot(ax, time, var, y, color=None):
         line, = ax.plot(time, y, linewidth=.5, label='Buoy')    
     ax.set_title(f'{names[var]} at Deenish Island', fontsize=6)        
     ax.set_ylabel(units[var], fontsize=6)  
-    if var == 'chl': ax.set_ylim([0, max(y) + .1])    
-    ax.grid()
+    if var == 'RFU': 
+        ax.set_ylim([0, max(y) + .1])   
+        
+    elif var == 'Oxygen Saturation':
+        y0, y1 = ax.get_ylim()
+        ax.fill_between(time, 0, 70, color='r', alpha=.3)
+        ax.set_ylim([y0, y1])
+    elif var == 'Chlorophyll-a':
+        y0, y1 = ax.get_ylim()
+        ax.fill_between(time, 10, 1000, color='r', alpha=.3)
+        ax.set_ylim([y0, y1])
     ax.set_xlim([min(time), max(time)])
+    ax.grid()
     
     if trange > timedelta(days=4):
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%b"))
@@ -249,7 +265,7 @@ def single_time_series_plot(ax, time, var, y, color=None):
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %H:%M"))
         ax.xaxis.set_minor_formatter(mdates.DateFormatter("%d %H:%M")) 
     
-    ax.tick_params(axis='both', labelsize=4)
+    ax.tick_params(axis='both', labelsize=6)
     return line
     
 def yy_plot(ax, time, var1, var2, y1, y2):
@@ -266,9 +282,9 @@ def yy_plot(ax, time, var1, var2, y1, y2):
     ax.tick_params(axis='y', color='C0', labelcolor='C0')
     ax2.tick_params(axis='y', color='C1', labelcolor='C1')
     ax.set_xlim([min(time), max(time)])
-    if var1 == 'chl':
+    if var1 == 'RFU':
         ax.set_ylim([0, max(y1) + .1])
-    if var2 == 'chl':
+    if var2 == 'RFU':
         ax2.set_ylim([0, max(y2) + .1])       
     
     if trange > timedelta(days=4):
@@ -282,76 +298,91 @@ def yy_plot(ax, time, var1, var2, y1, y2):
     ax.tick_params(axis='both', labelsize=4)
     ax2.tick_params(axis='both', labelsize=4)
     
-    
-def Plot_Deenish_NWSHELF_profile(ax, time, temp):
-    ''' Plot time series of temperature profile in Deenish Island '''
-    
-    for y in temp:
-        line = single_time_series_plot(ax, time, 'temp', y, color='k')
-    return line
-        
-
-def Plot_Deenish_user_selection(buoy, DBO, time, temp):
+def Plot_Deenish_user_selection(buoy, DBO, variable):
     ''' Generate Deenish Island Data Portal user's requested image '''
     
-    # fig, axes = plt.subplots(4, 2)
-    fig = plt.figure(constrained_layout=True)
+    images = []
     
-    axes = fig.subplot_mosaic(
-    """
-    AB
-    CD
-    EF
-    GH
-    II
-    """
-    )
+    fig, ax = plt.subplots(1)
+   
     
-    axis = iter(axes)
-    
-    W, H = fig.get_size_inches()
-    fig.set_size_inches(W, 2*H); 
     fig.tight_layout()
     
-    params = np.array([
-        [('chl',),      ('DOX',)],
-        [('pH',),       ('salt',)],
-        [('temp',),     ('temp', 'DOX')],
-        [('temp', 'chl'), ('temp', 'salt')],
-        ], dtype=object)
+  
+    if variable == 'Temperature':
+        
+        seas, pc90, climtime = DBO.Deenish_seas, DBO.Deenish_pc90, DBO.Deenish_time
             
-    for j in range(2):
-        for i in range(4):            
-            ax, var = axes[next(axis)], params[i, j]
+        Plot_Deenish_temperature(ax, seas, pc90, climtime, buoy['time'], buoy[variable])
+        
+    elif variable == 'Chlorophyll-a':
+        
+        single_time_series_plot(ax, DBO.OCEANCOLOUR[0], variable, DBO.OCEANCOLOUR[1])
+                        
+    else:
+        
+        single_time_series_plot(ax, buoy['time'], variable, buoy[variable])
             
-            if len(var) == 1:    # Single time series plot
-            
-                if var[0] == 'temp':
-                    Plot_Deenish_temperature(ax, DBO, buoy['time'], buoy[var[0]])
-                else:                    
-                    single_time_series_plot(ax, buoy['time'], var[0], buoy[var[0]])
-            
-            elif len(var) == 2:  # YY plot
-                yy_plot(ax, buoy['time'], var[0], var[1], 
-                        buoy[var[0]], buoy[var[1]])
-                
-    # Plot Northwest Shelf temperature profile
-    line = Plot_Deenish_NWSHELF_profile(axes[next(axis)], time, temp.T)
-    Plot_Deenish_temperature(axes['I'], DBO, buoy['time'], buoy['temp'], l4=line)
-    axes['I'].set_title('Temperature profile at Deenish Island from Northwest Shelf model',
-                        fontsize=6)
-    axes['I'].set_xlabel('BLUE: Buoy measurements. BLACK: Model predictions at multiple depths, from top to bottom: 0, 3, 5, 10, 15, 20, 25, 30 [m]', 
-                         fontsize=5)
-                
-    # Save figure
+    images.append(save_figure(fig, f'Deenish-{variable}'))
+    
+    return images
+       
+        
+   
+        
+def Plot_Deenish_YY(buoy, YY):
+    
+    images = []
+    
+    for i in 'ABC':
+        var1, var2 = YY[i + '1'], YY[ i + '2']
+        if var1 and var2:
+            fig, ax = plt.subplots(1)
+            yy_plot(ax, buoy['time'], var1, var2, buoy[var1], buoy[var2])
+            images.append(save_figure(fig, f'Deenish-{var1}-vs-{var2}'))
+    
+    return images
+
+
+def save_figure(fig, imagename):
+    
     T = datetime.now().strftime('%Y%m%d%H%M%S')
-    imagename = f'Deenish-{T}.jpg'
-    plt.savefig('static/' + imagename, dpi=500, bbox_inches='tight')
-    # Close figure
+    
+    fig.set_size_inches(5.00, 3.75)
+    
+    plt.savefig(f'static/{imagename}-{T}.jpg', dpi=250, bbox_inches='tight')
+    
     plt.close(fig) 
     
-    return imagename
+    return f'{imagename}-{T}.jpg'
 
+def Plot_NWSHELF_Profile(NWSHELF):
+    
+   
+    
+    image = []
+    
+    fig, ax = plt.subplots(1)
+    
+    time, Z, temp = NWSHELF
+        
+    for y in temp:
+        single_time_series_plot(ax, time, 'Temperature', y, color='k')
+    
+    ax.set_title('Temperature profile at Deenish Island from Northwest Shelf model',
+                        fontsize=6)
+    label = ''
+    for level in Z:
+        label += str(level) + ', '
+    label = label[0:-2]
+    
+    ax.set_xlabel('Model predictions at multiple depths, from top to bottom: ' 
+                  + label + ' [m]', fontsize=5)
+    
+    image.append(save_figure(fig, 'Deenish-NWSHELF'))
+    
+    return image
+    
 def plot_velocity(ax, t, u, v):
     
     # Get speed
@@ -359,43 +390,46 @@ def plot_velocity(ax, t, u, v):
     value = round(speed)
     
     ax.arrow(.5, .5, f*u, f*v, color='tab:gray', 
-        head_width=.08, head_length=.07)
+        head_width=.103, head_length=.055)
     
-    ax.add_patch(plt.Circle((.5, .5), .050, color='tab:gray'))
+    ax.add_patch(plt.Circle((.5, .5), .060, color='tab:gray'))
     ax.add_patch(plt.Circle((.5, .5), .040, color='w'))
     if value < 10:
-        ax.text(.49, .4985, '%d' % value, fontsize=18)
+        ax.text(.485, .4985, '%d' % value, fontsize=10)
     elif value < 100:
-        ax.text(.48, .4975, '%d' % value, fontsize=18)
+        ax.text(.475, .4975, '%d' % value, fontsize=10)
     else:
-        ax.text(.47, .4970, '%d' % value, fontsize=18)
-    ax.text(.48, .47, t.strftime('%H:%M'), fontsize=9)
+        ax.text(.465, .4970, '%d' % value, fontsize=10)
+    ax.text(.475, .47, t.strftime('%H:%M'), fontsize=4)
     
-    ax.axis('equal')
-    ax.set_xlim([.4, .6])
-    ax.set_ylim([.4, .6])
+    
     
 def Plot_Arrows(u, v, time):
+    
+    image = [] 
     fecha = time[0].strftime('%d-%b-%Y')
-    fig, axes = plt.subplots(12, 12, figsize=(24, 24))
+    fig, axes = plt.subplots(4, 6, figsize=(16, 16))
+   
     c = -1
-    for i in range(12):
-        for j in range(12):
-            c += 1; ax = axes[i, j]; ax.axis('off')
-            if c == 3:
-                ax.set_title(f'   Surface currents (cm/s) for {fecha}', fontsize=48)                            
+    for i in range(4):
+        for j in range(6):
+            c += 1; ax = axes[i, j]; ax.axis('off')            
+            if c == 2:
+                ax.set_title(f'   Surface currents (cm/s) for {fecha}', fontsize=10)                            
             
             try:
-                plot_velocity(ax, time[c], u[c], v[c])
+                plot_velocity(ax, time[6*c], u[6*c], v[6*c])
+                ax.axis('equal')
+                ax.set_xlim([.4, .6])
+                ax.set_ylim([.4, .6])
             except ValueError:
                 continue
             except IndexError:
                 continue
             
-    fig.tight_layout()
-    now = datetime.now().strftime('%Y%m%d%H%M%S')
-    name = f'Deenish-Arrows-{now}.jpg'
-    plt.savefig(f'static/{name}', 
-                dpi=300, bbox_inches='tight')
-    return name 
+    #fig.tight_layout()
+    
+    image.append(save_figure(fig, 'Deenish-Arrows'))
+    
+    return image 
             

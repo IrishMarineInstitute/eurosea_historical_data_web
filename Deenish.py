@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from dateutil.parser import parse
 from paramiko import SSHException
 from numpy import nan as NaN
+import CMEMS
 import numpy as np
 import pickle
 import os
@@ -18,16 +19,16 @@ def Deenish():
         os.mkdir(localpath)
     
     # Retrieve names of *.xml files already downloaded and save to list
-    local = update_local_directory(localpath)
+    local = update_local_directory(localpath, '.xml')
    
     # Download files
-    try:
-        xml_file_download(local, localpath, host, user, password)         
-    except SSHException:
-        pass
+    # try:
+    #     xml_file_download(local, localpath, host, user, password)         
+    # except SSHException:
+    #     pass
     
     # Update list of names of *.xml files already downloaded
-    local = update_local_directory(localpath)
+    local = update_local_directory(localpath, '.xml')
    
     if os.path.isfile('Deenish.pkl'):
         # Load buoy data from older download        
@@ -44,8 +45,8 @@ def Deenish():
     else:       
         # Initialize dictionary of output variables    
         var = {
-            'time': [], 'temp': [], 'salt': [], 'pH': [], 
-            'chl':  [], 'DOX':  [], 'u':    [], 'v':  [],
+            'time': [], 'Temperature': [], 'Salinity': [], 'pH': [], 
+            'RFU':  [], 'Oxygen Saturation':  [], 'u':    [], 'v':  [],
             }           
         
     for file in local:
@@ -60,8 +61,20 @@ def Deenish():
     # Update pickle file
     with open('Deenish.pkl', 'wb') as file:
         pickle.dump(var, file)
+      
+    # Download CMEMS data for the buoy period
+    NWSHELF = CMEMS.download_nwshelf('NORTHWESTSHELF_ANALYSIS_FORECAST_PHY_004_013-TDS',
+             'MetO-NWS-PHY-hi-TEM', var['time'])
+    
+    OCEANCOLOUR = CMEMS.download_oceancolour(
+        ('OCEANCOLOUR_ATL_BGC_L4_MY_009_118-TDS', 'OCEANCOLOUR_ATL_BGC_L4_NRT_009_116-TDS'),
         
-    return var
+        ('cmems_obs-oc_atl_bgc-plankton_my_l4-gapfree-multi-1km_P1D', 
+         'cmems_obs-oc_atl_bgc-plankton_nrt_l4-gapfree-multi-1km_P1D'),
+        
+        'cmems_obs-oc_atl_bgc-plankton_', var['time'])
+        
+    return var, NWSHELF, OCEANCOLOUR
 
 def quality_control(var):
     
@@ -71,8 +84,8 @@ def quality_control(var):
         
     # Initialize dictionary of output variables    
     new = {
-        'time': [], 'temp': [], 'salt': [], 'pH': [], 
-        'chl':  [], 'DOX':  [], 'u':    [], 'v':  [],
+        'time': [], 'Temperature': [], 'Salinity': [], 'pH': [], 
+        'RFU':  [], 'Oxygen Saturation':  [], 'u':    [], 'v':  [],
         }   
     
     time = np.array(var['time'])
@@ -105,15 +118,15 @@ def read_xml_file(file, var):
             if '<Time>' in line:
                 var['time'].append(find_time(line))
             elif 'Descr="Temperature"' in line:
-                var['temp'].append(find_value(f.readline()))
+                var['Temperature'].append(find_value(f.readline()))
             elif 'Descr="Salinity"' in line:
-                var['salt'].append(find_value(f.readline()))
+                var['Salinity'].append(find_value(f.readline()))
             elif 'Descr="Dissolved Oxygen"' in line:
-                var['DOX'].append(sat_to_c(find_value(f.readline())))
+                var['Oxygen Saturation'].append(sat_to_c(find_value(f.readline())))
             elif 'Descr="pH"' in line:
                 var['pH'].append(find_value(f.readline()))
             elif 'Descr="Chlorophyll RFU"' in line:
-                var['chl'].append(rfu_to_c(find_value(f.readline())))
+                var['RFU'].append(rfu_to_c(find_value(f.readline())))
             elif 'Descr="East"' in line:
                 var['u'].append(find_value(f.readline()))
             elif 'Descr="North"' in line:
@@ -144,11 +157,11 @@ def rfu_to_c(rfu):
             actual Chlorophyll-a Concentration '''
     return rfu
             
-def update_local_directory(localpath):
+def update_local_directory(localpath, extension):
     ''' Get a list with the names of *.xml files already downloaded '''
     local = []
     for file in os.listdir(localpath):
-        if file.endswith('.xml'):
+        if file.endswith(extension):
             local.append(file)
     return local
          

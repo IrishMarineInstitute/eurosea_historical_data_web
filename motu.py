@@ -1,5 +1,4 @@
 import motuclient
-import os
 
 # Set CMEMS credentials
 USERNAME, PASSWORD = 'dpereiro1', 'Marciano7!'
@@ -53,7 +52,7 @@ def motu_option_parser(script_template, usr, pwd, output_directory, output_filen
 def motu(SERVICE, PRODUCT, OUTPUT_DIRECTORY, OUTPUT_FILENAME, 
          xmin, xmax, ymin, ymax, idate, edate, variable, tipo):
     
-    if SERVICE == 'OCEANCOLOUR_ATL_BGC_L4_MY_009_118-TDS':
+    if 'OCEANCOLOUR_ATL_BGC_L4_' in SERVICE:
         
         # Set template
         script_template = ('python -m motuclient '
@@ -93,11 +92,5 @@ def motu(SERVICE, PRODUCT, OUTPUT_DIRECTORY, OUTPUT_FILENAME,
     # Prepare request
     data_request = motu_option_parser(script_template, 
         USERNAME, PASSWORD, OUTPUT_DIRECTORY, OUTPUT_FILENAME)
-    
-    while 1:         
-        motuclient.motu_api.execute_request(MotuOptions(data_request))    
-        # Check that file exists
-        if not os.path.exists(OUTPUT_DIRECTORY + '/' + OUTPUT_FILENAME):
-            continue # try again...
-        else:
-            break
+            
+    motuclient.motu_api.execute_request(MotuOptions(data_request))      

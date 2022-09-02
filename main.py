@@ -11,8 +11,9 @@ class Deenish_Buoy_Observatory:
     
     def __init__(self):
         
-        self.buoy = Deenish()     
-      
+        self.buoy, self.NWSHELF, self.OCEANCOLOUR = Deenish()   
+        
+           
         ''' Read climatology '''
         self.clim_x, self.clim_y, self.clim_time, self.seas, self.pc90, \
         self.Deenish_time, self.Deenish_seas, self.Deenish_pc90 = \

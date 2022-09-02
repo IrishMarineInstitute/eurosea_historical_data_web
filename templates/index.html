@@ -50,6 +50,9 @@
       
         <form method="POST" action="/">
                
+            <! -- DATE SELECTION DROP-DOWN LISTS -->
+               
+            <b>Date selection</b> <br>
             <p style="margin-right: 5px"> Start: </p>     
             <select name="times0" method="GET"> 
                 {% for time in times %} 
@@ -70,7 +73,11 @@
                 </option>
             </select>
             
-            <p style="margin-right: 5px"> Select date for surface current data: </p>     
+           
+           
+            <! -- DATE SELECTION FOR SURFACE CURRENTS DROP-DOWN LIST -->
+            
+            <p style="margin-left: 5px"> Select date for surface currents (one day only): </p>     
             <select name="times" method="GET"> 
                 {% for time in times %} 
                 <option value= "{{time}}" SELECTED>{{time}}</option>" 
@@ -79,16 +86,113 @@
                     {{time}}
                 </option>
             </select>
+            
+            <br> <br> 
+            
+            
+            
+            <! -- CHECKBOXES FOR SELECTION OF IN-SITU DATA + REMOTE-SENSING CHLOROPHYLL -->
+            
+            <b>In-situ data + Remote-Sensing Chlorophylly</b> <br>
+            
+            <input type="checkbox" name="selection" value="Temperature"> Temperature
+                        
+            <input type="checkbox" name="selection" value="Salinity"               style="margin-left: 100px" > Salinity
+                        
+            <input type="checkbox" name="selection" value="pH"                     style="margin-left: 100px" > pH
+                        
+            <input type="checkbox" name="selection" value="Oxygen Saturation"      style="margin-left: 100px"> Oxygen Saturation
+                        
+            <input type="checkbox" name="selection" value="RFU"                    style="margin-left: 100px" > Reference Fluorescence Units
+                        
+            <input type="checkbox" name="selection" value="Chlorophyll-a"          style="margin-left: 100px" > Remote-Sensing Chlorophyll
+                    
+            <br> <br>
+            
+            
+            
+            <! -- DROP-DOWN LISTS FOR YY-PLOTS -->
+            
+            <b>Selecto two variables to display in one plot</b> <br>            
+            
+            <select name="A1" method="GET"> 
+                {% for variable in variables %} 
+                <option value= "{{variable}}" SELECTED>{{variable}}</option>" 
+                {% endfor %} 
+               
+            </select>
+            
+            <p style="margin-left: 5px"> vs. </p> 
+                        
+            <select name="A2" method="GET"> 
+                {% for variable in variables %} 
+                <option value= "{{variable}}" SELECTED>{{variable}}</option>" 
+                {% endfor %} 
+               
+            </select>
+                   
+                
+            <select style="margin-left: 100px" name="B1" method="GET"> 
+                {% for variable in variables %} 
+                <option value= "{{variable}}" SELECTED>{{variable}}</option>" 
+                {% endfor %} 
+               
+            </select>
+            
+            <p style="margin-left: 5px"> vs. </p> 
+            
+            <select name="B2" method="GET"> 
+                {% for variable in variables %} 
+                <option value= "{{variable}}" SELECTED>{{variable}}</option>" 
+                {% endfor %} 
+               
+            </select>
+                                
+                
+            <select style="margin-left: 100px" name="C1" method="GET"> 
+                {% for variable in variables %} 
+                <option value= "{{variable}}" SELECTED>{{variable}}</option>" 
+                {% endfor %} 
+               
+            </select>
+            
+            <p style="margin-left: 5px"> vs. </p> 
+                        
+            <select name="C2" method="GET"> 
+                {% for variable in variables %} 
+                <option value= "{{variable}}" SELECTED>{{variable}}</option>" 
+                {% endfor %} 
+               
+            </select>
+            
+           <br> <br>
         
-            <input type="submit" value="Display"  name="Display"  style="margin-left: 20px" />
+        
+        
+            <! -- DEPTH OF TEMPERATURE LAYERS FROM NORTHWEST SHELF MODEL -->
+            
+            <b>Select depth [m] for temperature</b> <br>
+            
+            {% for z in layers %} 
+            <input type="checkbox" name="layers" value="{{z}}"> {{z}}
+            {% endfor %} 
+            
+            
+                        
+                        
+            <! -- DISPLAY AND DOWNLOAD BUTTONS -->        
+                        
+            <input type="submit" value="Display"  name="Display"  style="margin-left: 10px" />
             
             <input type="submit" value="Download" name="Download" style="margin-left: 10px" />
             
-            <p style="margin-right: 5px"> Please wait about 1 minute after the request is submitted. </p>    
-                                   
-            <img src="{{url_for('static', filename=graph)}}" />
+            <br>
             
-            <img src="{{url_for('static', filename=arrows)}}" />
+            <! -- FIGURES TO BE DISPLAYED AT THE BOTTOM OF THE PAGE -->        
+                        
+            {% for image in graph %} 
+            <img src="{{url_for('static', filename=image)}}" /> <br>
+            {% endfor %} 
             
             
         </form>
