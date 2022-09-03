@@ -103,7 +103,10 @@ def cmems_file_download(time, local, localpath, SERVICE, PRODUCT, key,
             
             # Check that file exists
             if not os.path.exists(localpath + '/' + file):
-                return
+                if dataset == 'my':
+                    return
+                elif dataset == 'nrt':
+                    continue
             
 def update_local_directory(localpath, extension):
     ''' Get a list with the names of *.xml files already downloaded '''
