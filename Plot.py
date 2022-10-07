@@ -8,9 +8,11 @@ import numpy as np
 from cmocean.cm import thermal, algae, amp
 from datetime import datetime, timedelta
 from geopy.distance import distance
-from PIL import Image
+from PIL import Image, ImageOps
 from urllib.request import urlopen, Request
 import io
+
+lon, lat = -10.2122, 51.7431
 
 font = {'size' : 12}; matplotlib.rc('font', **font)
 
@@ -24,7 +26,7 @@ units = {'Temperature': '$^\circ$C',
 names = {'Temperature': 'Temperature', 
          'Salinity': 'Salinity',
          'pH': 'pH',
-         'RFU': 'Reference Fluorescence Units',
+         'RFU': 'Raw Fluorescence Units',
          'Oxygen Saturation': 'Oxygen saturation',
          'Chlorophyll-a': 'Chlorophyll-a concentration'}
 
@@ -126,26 +128,27 @@ def plot2d(save, filename, x, y, data, vmin, vmax,
            cmap, units='', title='', path='IMAGES'):
     fig, ax = osm_image(x, y, data=data, vmin=vmin, vmax=vmax, 
         cmap=cmap, units=units, title=title)
+    ax.plot(lon, lat, 'w*', ms=6)
     if save:
         plt.savefig(f'{path}/' + filename, dpi=500, bbox_inches='tight')
     plt.close(fig) 
     return ax
         
 def Plot_chla(x_chl, y_chl, time_chl, chl, save=True):
-    title = 'Chlorophyll-a ' + datetime(time_chl.year, 
+    title = 'Satellite Chlorophyll-a ' + datetime(time_chl.year, 
         time_chl.month, time_chl.day).strftime('%d-%b-%Y')       
     ax = plot2d(save, 'SWIRL-CHLA.jpg', x_chl, y_chl, chl, 0, 10, 
             algae, units=r'mg m$^{-3}$', title=title, path='static')  
     return ax    
     
 def Plot_chla_anom(x_chl, y_chl, time_chl, anom, save=True):
-    title = 'Chlorophyll-a anomaly ' + datetime(time_chl.year, 
+    title = 'Satellite Chlorophyll-a anomaly ' + datetime(time_chl.year, 
         time_chl.month, time_chl.day).strftime('%d-%b-%Y')       
     plot2d(save, 'SWIRL-CHLAa.jpg', x_chl, y_chl, anom, -2, 2, 
             'bwr', units=r'mg m$^{-3}$', title=title, path='static')      
     
 def Plot_SST(sst_x, sst_y, sst_time, sst, save=True):
-    title = 'MUR-SST ' + datetime(sst_time.year, 
+    title = 'Satellite MUR-SST ' + datetime(sst_time.year, 
         sst_time.month, sst_time.day).strftime('%d-%b-%Y')   
     avg = sst.mean(); v_min, v_max = round(avg - 2), round(avg + 2)    
     ax = plot2d(save, 'SWIRL-SST.jpg', sst_x, sst_y, sst, v_min, v_max, 
@@ -153,7 +156,7 @@ def Plot_SST(sst_x, sst_y, sst_time, sst, save=True):
     return ax
     
 def Plot_anom(sst_x, sst_y, sst_time, anom, save=True):
-    title = 'MUR-SST Anomaly ' + datetime(sst_time.year, 
+    title = 'Satellite MUR-SST Anomaly ' + datetime(sst_time.year, 
         sst_time.month, sst_time.day).strftime('%d-%b-%Y')     
     # Plot anomaly
     ax = plot2d(save, 'SWIRL-SSTa.jpg', sst_x, sst_y, anom, -2, 2, 
@@ -193,7 +196,7 @@ def Plot_Deenish_temperature(ax, seas, pc90, climtime, time, T, l4=None):
     ''' Plot Deenish Island temperature series highlighting Marine Heat Spikes '''
     
     l1, = ax.plot(time, T, linewidth=1, label='Buoy', color='b')
-    ax.set_title('Temperature at Deenish Island', fontsize=6)
+    ax.set_title('In-Situ Temperature at Deenish Island', fontsize=6)
     ax.set_ylabel('$^\circ$C', fontsize=6)
     ax.grid()
     ax.set_xlim([min(time), max(time)])
@@ -242,7 +245,7 @@ def single_time_series_plot(ax, time, var, y, color=None):
         line, = ax.plot(time, y, linewidth=.5, label='Model', color=color)    
     else:
         line, = ax.plot(time, y, linewidth=.5, label='Buoy')    
-    ax.set_title(f'{names[var]} at Deenish Island', fontsize=6)        
+    ax.set_title(f'In-Situ {names[var]} at Deenish Island', fontsize=6)        
     ax.set_ylabel(units[var], fontsize=6)  
     if var == 'RFU': 
         ax.set_ylim([0, max(y) + .1])   
@@ -276,7 +279,7 @@ def yy_plot(ax, time, var1, var2, y1, y2):
     ax.grid()    
     ax2 = ax.twinx()
     ax2.plot(time, y2, linewidth=.5, color='C1')
-    ax.set_title(f'{names[var1]} & {names[var2]} at Deenish Island', fontsize=6)
+    ax.set_title(f'In-Situ {names[var1]} & {names[var2]} at Deenish Island', fontsize=6)
     ax.set_ylabel(units[var1], fontsize=6, color='C0')
     ax2.set_ylabel(units[var2], fontsize=6, color='C1')
     ax.tick_params(axis='y', color='C0', labelcolor='C0')
@@ -369,7 +372,7 @@ def Plot_NWSHELF_Profile(NWSHELF):
     for y in temp:
         single_time_series_plot(ax, time, 'Temperature', y, color='k')
     
-    ax.set_title('Temperature profile at Deenish Island from Northwest Shelf model',
+    ax.set_title('Temperature profile at Deenish Island from Northwest Shelf Model',
                         fontsize=6)
     label = ''
     for level in Z:
@@ -385,51 +388,160 @@ def Plot_NWSHELF_Profile(NWSHELF):
     
 def plot_velocity(ax, t, u, v):
     
-    # Get speed
-    speed = (u**2 + v**2)**.5; f = .03*speed**-1    
-    value = round(speed)
+    speed = (u**2 + v**2)**.5; f = .03*speed**-1   
+    try:
+        value = round(speed)
+    except ValueError: # NaN
+        return
     
     ax.arrow(.5, .5, f*u, f*v, color='tab:gray', 
-        head_width=.103, head_length=.055)
+        head_width=.103, head_length=.05)
     
-    ax.add_patch(plt.Circle((.5, .5), .060, color='tab:gray'))
-    ax.add_patch(plt.Circle((.5, .5), .040, color='w'))
+    ax.add_patch(plt.Circle((.5, .5), .06, color='tab:gray'))
+    ax.add_patch(plt.Circle((.5, .5), .04, color='w'))
     if value < 10:
-        ax.text(.485, .4985, '%d' % value, fontsize=10)
+        ax.text(.48, .48, '%d' % value, fontsize=12)
     elif value < 100:
-        ax.text(.475, .4975, '%d' % value, fontsize=10)
+        ax.text(.47, .48, '%d' % value, fontsize=12)
     else:
-        ax.text(.465, .4970, '%d' % value, fontsize=10)
-    ax.text(.475, .47, t.strftime('%H:%M'), fontsize=4)
-    
+        ax.text(.46, .48, '%d' % value, fontsize=10)
+    # ax.text(.275, .37, t.strftime('%H:%M'), fontsize=12)
+    ax.set_xlabel(t.strftime('%H:%M'), fontsize=12)
     
     
 def Plot_Arrows(u, v, time):
-    
     image = [] 
+    
     fecha = time[0].strftime('%d-%b-%Y')
-    fig, axes = plt.subplots(4, 6, figsize=(16, 16))
+    fig, axes = plt.subplots(1, 24, figsize=(24, 6))
+    
+    b = 0.01
+    k = 1/25
+    
+    for j in range(24):
+        pos = [k*j+b, .1, .02, .1]
+        axes[j].set_position(pos)
    
     c = -1
-    for i in range(4):
-        for j in range(6):
-            c += 1; ax = axes[i, j]; ax.axis('off')            
-            if c == 2:
-                ax.set_title(f'   Surface currents (cm/s) for {fecha}', fontsize=10)                            
-            
-            try:
-                plot_velocity(ax, time[6*c], u[6*c], v[6*c])
-                ax.axis('equal')
-                ax.set_xlim([.4, .6])
-                ax.set_ylim([.4, .6])
-            except ValueError:
-                continue
-            except IndexError:
-                continue
-            
-    #fig.tight_layout()
     
-    image.append(save_figure(fig, 'Deenish-Arrows'))
+        
+    for j in range(24):
+        c += 1; ax = axes[j]; #ax.axis('off')    
+        
+        if c == 11:
+            ax.set_title(f'In-Situ Surface currents (cm/s) for {fecha}', fontsize=24)                            
+        
+        #try:
+        plot_velocity(ax, time[6*c], u[6*c], v[6*c])
+        ax.axis('equal')
+        ax.set_yticklabels([])
+        ax.set_xticklabels([])
+        ax.set_xticks([])
+        ax.set_yticks([])
+        
+        ax.spines['bottom'].set_color('#dddddd')
+        ax.spines['top'].set_color('#dddddd') 
+        ax.spines['right'].set_color('#dddddd')
+        ax.spines['left'].set_color('#dddddd')
+          
+   
+  
+    plt.savefig('static/Deenish-Arrows.jpg', dpi=500, bbox_inches='tight')
     
-    return image 
+    I = Image.open('static/Deenish-Arrows.jpg').resize((1800, 100), Image.ANTIALIAS)
+    #I = add_border(I)
+    #I.save('static/Deenish-Arrows.jpg', quality=95)   
+     
+    #image.append('Deenish-Arrows.jpg')
+    
+    #return image
+    return I
+
+def circular_axes(ax, R, s, label):
+    
+    
+   
+    f = 2**.5/2
+    
+    ax.axis('equal')
+    ax.set(xlim=(-R, R), ylim=(-R, R))
+    
+    for i in range(s, R, s):            
+        circle = plt.Circle((0, 0), i, color='gray')
+        circle.set_fill(False)
+        circle.set_linewidth(.5)
+    
+        ax.add_patch(circle)
+        ax.text(i*f, i*f, str(i), fontsize=6)
+    
+    ax.plot([-R, R], [0, 0], color='gray', linewidth=.5)
+    ax.plot([0, 0], [-R, R], color='gray', linewidth=.5)
+    
+    ax.text(-1.1*R, -.025*R, 'W', fontsize=6)
+    ax.text(1.05*R, -.025*R, 'E', fontsize=6)
+    ax.text(-.025*R, 1.05*R, 'N', fontsize=6)
+    ax.text(-.025*R, -1.1*R, 'S', fontsize=6)
+    
+    ax.axis('off')
+    
+    ax.text(-0.85*R, -1.2*R, label, fontsize=6)
+    
+    return ax
+
+def Plot_Displacements(u, v, Dx, Dy, t):
+    image = []
+    
+    # Get date as string to be shown in x-labels
+    fecha = t[0].strftime('%d-%b-%Y')
+    
+    # Convert times to NumPy datetimes as required by the colorbar
+    times = np.array([np.datetime64(i) for i in t])
+    # Convert to Matplotlib date numbers    
+    c=mdates.date2num(times)
+    
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(24, 12))
+    # Create circular axes for scatter plot
+    circular_axes(axes[0], 55, 10, f'Surface current velocities for {fecha} in cm/s')
+    # Create circular axes for vector regression plot
+    circular_axes(axes[1], 25, 5, f'Water displacement for {fecha} in km')
+    
+    # Set color scale with 'viridis' colormap and proper data range
+    m = plt.cm.ScalarMappable(cmap='viridis'); m.set_clim(c[0], c[-1])
+    
+    # Draw scatter plot
+    axes[0].scatter(u, v, s=4, c=c)    
+    
+    cb = plt.colorbar(m, ax=axes[0], fraction=0.046, pad=0.04)
+    loc = mdates.AutoDateLocator()
+    cb.ax.yaxis.set_major_locator(loc)
+    cb.ax.yaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+    cb.ax.tick_params(labelsize=4)
+    
+    cb.ax.yaxis.get_offset_text().set_color('w')
+    cb.ax.yaxis.get_offset_text().set_fontsize(0)
+    
+    # Draw vector regression
+    axes[1].plot(Dx, Dy)
+    
+    axes[0].set_position([0.01, 0.1, 0.4, 0.8])
+    
+    axes[1].set_position([0.56, 0.1, 0.4, 0.8])
+       
+    # fig.tight_layout()
+    
+    #I = Image.frombytes('RGB', fig.canvas.get_width_height(),
+    #                    fig.canvas.tostring_rgb())
+    name = save_figure(fig, 'Deenish-Displacements')
+    #image.append(save_figure(fig, 'Deenish-Displacements'))
+    I = Image.open(f'static/{name}')
+    #width, height = I.size
+    #im = I.crop((0, height/6, width, 6*height/7))
+    # im = add_border(I)
+    # im.save('static/Deenish-Displacements.jpg', quality=95)  
+    #return ['Deenish-Displacements.jpg']
+    return I
             
+def add_border(im):
+    return ImageOps.expand(im, border=(1, 1, 1, 1), fill='black')
+
+   

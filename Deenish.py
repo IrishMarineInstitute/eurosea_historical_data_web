@@ -10,11 +10,11 @@ import pysftp
 
 def Deenish():
     
-    # Puertos del Estado INSTAC SFTP hostname and credentials
-    host, user, password = 'enoc.puertos.es', 'marine_instac', 'NwP3MU%oV5Fu'
+    # Puertos del Estado INSTAC SFTP hostname and credentials    
+    host, user, pswd = os.environ.get('host'), os.environ.get('user'), os.environ.get('pswd')
     
     # Create output directory to download *.xml files
-    localpath = os.getcwd() + '/xml'
+    localpath = os.environ.get('DATA') + '/xml'
     if not os.path.isdir(localpath):
         os.mkdir(localpath)
     
@@ -22,15 +22,16 @@ def Deenish():
     local = update_local_directory(localpath, '.xml')
    
     # Download files
-    # try:
-    #     xml_file_download(local, localpath, host, user, password)         
-    # except SSHException:
-    #     pass
+    try:
+        xml_file_download(local, localpath, host, user, pswd)         
+    except SSHException:
+        pass
     
     # Update list of names of *.xml files already downloaded
     local = update_local_directory(localpath, '.xml')
    
-    if os.path.isfile('Deenish.pkl'):
+    pickle_file = os.environ.get('DATA') + '/Deenish.pkl'
+    if os.path.isfile(pickle_file):
         # Load buoy data from older download        
         with open('Deenish.pkl', 'rb') as file:
             var = pickle.load(file)
@@ -59,7 +60,7 @@ def Deenish():
     var = quality_control(var)    
         
     # Update pickle file
-    with open('Deenish.pkl', 'wb') as file:
+    with open(pickle_file, 'wb') as file:
         pickle.dump(var, file)
       
     # Download CMEMS data for the buoy period
@@ -176,9 +177,5 @@ def xml_file_download(local, localpath, host, user, pswd):
                 print(f'Download Deenish Island {file}'); 
                 while True:
                     try: 
-                        sftp.get(file); break
+                        sftp.get(file, localpath=localpath + '/' + file); break
                     except SSHException: continue
-                while True:
-                    try: 
-                        os.rename(file, localpath + '/' + file); break
-                    except PermissionError: continue

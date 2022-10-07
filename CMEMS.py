@@ -13,7 +13,7 @@ names = {
 def download_oceancolour(SERVICE, PRODUCT, key, time):
     
     # Create output directory to download *.nc files
-    localpath = os.getcwd() + '/oceancolour'
+    localpath = os.environ.get('DATA') + '/oceancolour'
     if not os.path.isdir(localpath):
         os.mkdir(localpath)
         
@@ -45,7 +45,7 @@ def download_oceancolour(SERVICE, PRODUCT, key, time):
 def download_nwshelf(SERVICE, PRODUCT, time):
             
     # Create output directory to download *.nc files
-    localpath = os.getcwd() + '/nwshelf'
+    localpath = os.environ.get('DATA') + '/nwshelf'
     if not os.path.isdir(localpath):
         os.mkdir(localpath)
         

@@ -1,7 +1,8 @@
 import motuclient
+import os
 
 # Set CMEMS credentials
-USERNAME, PASSWORD = 'dpereiro1', 'Marciano7!'
+USERNAME, PASSWORD = os.environ.get('USERNAME'), os.environ.get('PASSWORD')
 
 class MotuOptions:
     def __init__(self, attrs: dict):
