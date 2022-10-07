@@ -29,7 +29,7 @@ def download_oceancolour(SERVICE, PRODUCT, key, time):
     
     # Update list of names of *.nc files already downloaded
     local = update_local_directory(localpath, '.nc')
-    local = ['oceancolour/' + i for i in local]
+    local = [localpath + '/' + i for i in local]
     
     # Read from NetCDF collection
     with MFDataset(local, aggdim='time') as nc:
@@ -57,7 +57,7 @@ def download_nwshelf(SERVICE, PRODUCT, time):
     
     # Update list of names of *.nc files already downloaded
     local = update_local_directory(localpath, '.nc')
-    local = ['nwshelf/' + i for i in local]
+    local = [localpath + '/' + i for i in local]
     
     # Read from NetCDF collection
     with MFDataset(local, aggdim='time') as nc:

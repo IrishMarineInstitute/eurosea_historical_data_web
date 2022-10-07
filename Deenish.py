@@ -33,7 +33,7 @@ def Deenish():
     pickle_file = os.environ.get('DATA') + '/Deenish.pkl'
     if os.path.isfile(pickle_file):
         # Load buoy data from older download        
-        with open('Deenish.pkl', 'rb') as file:
+        with open(pickle_file, 'rb') as file:
             var = pickle.load(file)
         # Get latest time
         latest = var['time'][-1].strftime('%Y%m%dT%H%M')
