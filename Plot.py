@@ -11,8 +11,22 @@ from geopy.distance import distance
 from PIL import Image, ImageOps
 from urllib.request import urlopen, Request
 import io
+import os
 
-lon, lat = -10.2122, 51.7431
+# Define where data and credentials are stored as an environment variable
+os.environ['DATA'] = 'H:\Diego\EuroSea\DATA'    
+
+# Read credentials from secrets file and save as environment variables
+secrets = os.environ.get('DATA') + '/secrets'
+
+# Read secrets (configuration) file
+with open(secrets, 'r') as f:
+    for line in f:
+        key, val = line.split()
+        # Save as environment variable
+        os.environ[key] = val
+
+lon, lat = os.environ.get('lon'), os.environ.get('lat')
 
 font = {'size' : 12}; matplotlib.rc('font', **font)
 
@@ -128,7 +142,7 @@ def plot2d(save, filename, x, y, data, vmin, vmax,
            cmap, units='', title='', path='IMAGES'):
     fig, ax = osm_image(x, y, data=data, vmin=vmin, vmax=vmax, 
         cmap=cmap, units=units, title=title)
-    ax.plot(lon, lat, 'w*', ms=6)
+    ax.plot(lon, lat, 'w*', ms=6, zorder=3)
     if save:
         plt.savefig(f'{path}/' + filename, dpi=500, bbox_inches='tight')
     plt.close(fig) 
@@ -318,9 +332,9 @@ def Plot_Deenish_user_selection(buoy, DBO, variable):
             
         Plot_Deenish_temperature(ax, seas, pc90, climtime, buoy['time'], buoy[variable])
         
-    elif variable == 'Chlorophyll-a':
+    # elif variable == 'Chlorophyll-a':
         
-        single_time_series_plot(ax, DBO.OCEANCOLOUR[0], variable, DBO.OCEANCOLOUR[1])
+        # single_time_series_plot(ax, DBO.OCEANCOLOUR[0], variable, DBO.OCEANCOLOUR[1])
                         
     else:
         
@@ -349,15 +363,23 @@ def Plot_Deenish_YY(buoy, YY):
 
 def save_figure(fig, imagename):
     
+    
+    
     T = datetime.now().strftime('%Y%m%d%H%M%S')
+    
+    name = f'{imagename}-{T}.jpg'
     
     fig.set_size_inches(5.00, 3.75)
     
-    plt.savefig(f'static/{imagename}-{T}.jpg', dpi=250, bbox_inches='tight')
+    plt.savefig(f'static/{name}', dpi=300, bbox_inches='tight')
     
     plt.close(fig) 
     
-    return f'{imagename}-{T}.jpg'
+    I = add_border(Image.open(f'static/{name}'))
+    
+    I.save(f'static/{name}')
+    
+    return name
 
 def Plot_NWSHELF_Profile(NWSHELF):
     
@@ -409,9 +431,8 @@ def plot_velocity(ax, t, u, v):
     ax.set_xlabel(t.strftime('%H:%M'), fontsize=12)
     
     
-def Plot_Arrows(u, v, time):
-    image = [] 
-    
+def Plot_Arrows(u, v, time, variable):
+        
     fecha = time[0].strftime('%d-%b-%Y')
     fig, axes = plt.subplots(1, 24, figsize=(24, 6))
     
@@ -423,13 +444,15 @@ def Plot_Arrows(u, v, time):
         axes[j].set_position(pos)
    
     c = -1
+        
+    units = 'm/s' if 'Wind' in variable else 'cm/s'
     
         
     for j in range(24):
-        c += 1; ax = axes[j]; #ax.axis('off')    
+        c += 1; ax = axes[j]; 
         
         if c == 11:
-            ax.set_title(f'In-Situ Surface currents (cm/s) for {fecha}', fontsize=24)                            
+            ax.set_title(f'In-Situ {variable} {units} for {fecha}', fontsize=24)                            
         
         #try:
         plot_velocity(ax, time[6*c], u[6*c], v[6*c])
@@ -449,12 +472,7 @@ def Plot_Arrows(u, v, time):
     plt.savefig('static/Deenish-Arrows.jpg', dpi=500, bbox_inches='tight')
     
     I = Image.open('static/Deenish-Arrows.jpg').resize((1800, 100), Image.ANTIALIAS)
-    #I = add_border(I)
-    #I.save('static/Deenish-Arrows.jpg', quality=95)   
-     
-    #image.append('Deenish-Arrows.jpg')
-    
-    #return image
+   
     return I
 
 def circular_axes(ax, R, s, label):
@@ -489,8 +507,7 @@ def circular_axes(ax, R, s, label):
     return ax
 
 def Plot_Displacements(u, v, Dx, Dy, t):
-    image = []
-    
+        
     # Get date as string to be shown in x-labels
     fecha = t[0].strftime('%d-%b-%Y')
     
@@ -527,18 +544,11 @@ def Plot_Displacements(u, v, Dx, Dy, t):
     
     axes[1].set_position([0.56, 0.1, 0.4, 0.8])
        
-    # fig.tight_layout()
-    
-    #I = Image.frombytes('RGB', fig.canvas.get_width_height(),
-    #                    fig.canvas.tostring_rgb())
+   
     name = save_figure(fig, 'Deenish-Displacements')
-    #image.append(save_figure(fig, 'Deenish-Displacements'))
+   
     I = Image.open(f'static/{name}')
-    #width, height = I.size
-    #im = I.crop((0, height/6, width, 6*height/7))
-    # im = add_border(I)
-    # im.save('static/Deenish-Displacements.jpg', quality=95)  
-    #return ['Deenish-Displacements.jpg']
+   
     return I
             
 def add_border(im):

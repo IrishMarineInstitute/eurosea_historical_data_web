@@ -7,6 +7,9 @@ import numpy as np
 import pickle
 import os
 import pysftp
+from math import sin, cos, pi
+
+DEG2RAD = pi/180 # Conversion factor from degrees to radians
 
 def Deenish():
     
@@ -47,8 +50,12 @@ def Deenish():
         # Initialize dictionary of output variables    
         var = {
             'time': [], 'Temperature': [], 'Salinity': [], 'pH': [], 
-            'RFU':  [], 'Oxygen Saturation':  [], 'u':    [], 'v':  [],
-            }           
+            'RFU':  [], 'Oxygen Saturation':  [], 
+            'u0':    [], 'v0':  [],
+            'umid':    [], 'vmid':  [],
+            'ubot':    [], 'vbot':  [],
+            'uwind':    [], 'vwind':  [],
+            }            
         
     for file in local:
         tempo = datetime.strptime(file[0:13], '%Y%m%dT%H%M')
@@ -67,15 +74,13 @@ def Deenish():
     NWSHELF = CMEMS.download_nwshelf('NORTHWESTSHELF_ANALYSIS_FORECAST_PHY_004_013-TDS',
              'MetO-NWS-PHY-hi-TEM', var['time'])
     
-    OCEANCOLOUR = CMEMS.download_oceancolour(
-        ('OCEANCOLOUR_ATL_BGC_L4_MY_009_118-TDS', 'OCEANCOLOUR_ATL_BGC_L4_NRT_009_116-TDS'),
+    # OCEANCOLOUR = CMEMS.download_oceancolour(
+    #     ('OCEANCOLOUR_ATL_BGC_L4_MY_009_118-TDS', 'OCEANCOLOUR_ATL_BGC_L4_NRT_009_116-TDS'),        
+    #     ('cmems_obs-oc_atl_bgc-plankton_my_l4-gapfree-multi-1km_P1D', 
+    #      'cmems_obs-oc_atl_bgc-plankton_nrt_l4-gapfree-multi-1km_P1D'),        
+    #     'cmems_obs-oc_atl_bgc-plankton_', var['time'])
         
-        ('cmems_obs-oc_atl_bgc-plankton_my_l4-gapfree-multi-1km_P1D', 
-         'cmems_obs-oc_atl_bgc-plankton_nrt_l4-gapfree-multi-1km_P1D'),
-        
-        'cmems_obs-oc_atl_bgc-plankton_', var['time'])
-        
-    return var, NWSHELF, OCEANCOLOUR
+    return var, NWSHELF # OCEANCOLOUR
 
 def quality_control(var):
     
@@ -86,7 +91,11 @@ def quality_control(var):
     # Initialize dictionary of output variables    
     new = {
         'time': [], 'Temperature': [], 'Salinity': [], 'pH': [], 
-        'RFU':  [], 'Oxygen Saturation':  [], 'u':    [], 'v':  [],
+        'RFU':  [], 'Oxygen Saturation':  [], 
+        'u0':    [], 'v0':  [],
+        'umid':    [], 'vmid':  [],
+        'ubot':    [], 'vbot':  [],
+        'uwind':    [], 'vwind':  [],
         }   
     
     time = np.array(var['time'])
@@ -111,6 +120,10 @@ def quality_control(var):
 
 def read_xml_file(file, var):
     ''' Read an *.xml file and updates the fields of interest '''
+    
+    # SET MID-WATER AND SEABED DCPS CELL INDEXES AS PER "SECRETS" FILE
+    MID, BOT = int(os.environ.get('MID')), int(os.environ.get('BOT'))
+    
     with open(file, 'r') as f:
         # Discard header
         for i in range(5): f.readline()
@@ -129,13 +142,43 @@ def read_xml_file(file, var):
             elif 'Descr="Chlorophyll RFU"' in line:
                 var['RFU'].append(rfu_to_c(find_value(f.readline())))
             elif 'Descr="East"' in line:
-                var['u'].append(find_value(f.readline()))
+                var['u0'].append(find_value(f.readline()))
             elif 'Descr="North"' in line:
-                var['v'].append(find_value(f.readline()))
+                var['v0'].append(find_value(f.readline()))
+            elif f'Cell Index="{MID}"' in line:
+                u, v = get_cartesian(f)
+                var['umid'].append(u); var['vmid'].append(v);
+            elif f'Cell Index="{BOT}"' in line:
+                u, v = get_cartesian(f)
+                var['ubot'].append(u); var['vbot'].append(v);
+            elif 'Average Wind Speed' in line:
+                wind_speed = find_value(f.readline())
+            elif 'Average Wind Direction' in line:
+                wind_direction = find_value(f.readline())
+                var['uwind'].append(wind_speed * cos ( DEG2RAD * ( 90 - wind_direction ) ))
+                var['vwind'].append(wind_speed * sin ( DEG2RAD * ( 90 - wind_direction ) ))
             # Read next line
             line = f.readline()
     
+def get_cartesian(f):
+    ''' Extract u, v components from .xml file '''    
+    C = 0
+    while 1:
+        line = f.readline()
+        if 'Value' in line:
+            C += 1
+            if C == 3:
+                r = find_value(line)
+            elif C == 4:
+                D = find_value(line); break
+        if 'Cell Index' in line:
+            raise RuntimeError('Could not find velocity components in .xml file')
             
+    if ( r == 68 ) and ( D == 68 ): r, D = NaN, NaN
+    u = r * cos ( DEG2RAD * ( 90 - D ) ) # Get u-component
+    v = r * sin ( DEG2RAD * ( 90 - D ) ) # Get v-component
+    return u, v
+        
 def find_value(line):
     ''' Get numeric value from line of text '''
     i = line.find('e>') + 2

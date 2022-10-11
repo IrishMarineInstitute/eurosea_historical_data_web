@@ -1,9 +1,6 @@
 import motuclient
 import os
 
-# Set CMEMS credentials
-USERNAME, PASSWORD = os.environ.get('USERNAME'), os.environ.get('PASSWORD')
-
 class MotuOptions:
     def __init__(self, attrs: dict):
         super(MotuOptions, self).__setattr__("attrs", attrs)
@@ -90,8 +87,24 @@ def motu(SERVICE, PRODUCT, OUTPUT_DIRECTORY, OUTPUT_FILENAME,
         
         raise ValueError('Unexpected service has been requested!')
 
+    # Define where data and credentials are stored as an environment variable
+    os.environ['DATA'] = 'H:\Diego\EuroSea\DATA'    
+    
+    # Read credentials from secrets file and save as environment variables
+    secrets = os.environ.get('DATA') + '/secrets'
+    
+    # Read secrets (configuration) file
+    with open(secrets, 'r') as f:
+        for line in f:
+            key, val = line.split()
+            # Save as environment variable
+            os.environ[key] = val
+            
+    # Set CMEMS credentials
+    USERNAME, PASSWORD = os.environ.get('USERNAME'), os.environ.get('PASSWORD')
+
     # Prepare request
     data_request = motu_option_parser(script_template, 
         USERNAME, PASSWORD, OUTPUT_DIRECTORY, OUTPUT_FILENAME)
-            
+  
     motuclient.motu_api.execute_request(MotuOptions(data_request))      

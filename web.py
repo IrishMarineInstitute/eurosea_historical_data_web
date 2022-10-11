@@ -10,9 +10,11 @@ from pytz import timezone
 import numpy as np
 from glob import glob
 from PIL import Image
-from math import atan2, pi
+from math import pi
 import Plot
 import os
+
+static = os.environ.get('static')
 
 units = {'Temperature': '°C', 'Salinity': '', 'pH': '', 'RFU': '', 'Oxygen Saturation': '%'}
 
@@ -40,7 +42,7 @@ def web(DBO):
             if 'Display' in request.form:   
                 
                 ''' Remove older images '''
-                images = glob('static/Deenish*')
+                images = glob('static/*.jpg')
                 for file in images:
                     os.remove(file) 
                 images = []
@@ -57,28 +59,34 @@ def web(DBO):
                 # Date for surface currents information
                 datestring = ''
                 if request.form.get('times'):
+                    # Get user's selection of vector variables (winds or currents)
+                    user_variables = request.form.getlist('vectors')
+                    # Get date selection as string
                     datestring = request.form.get('times')
-                    # Get date
-                    fecha = datetime.strptime(datestring, '%Y-%m-%d')                         
-                    # Get currents for the selected date
-                    u, v, t = surface_currents_request(DBO, fecha)      
-                    # Create NetCDF for OpenDrift
-                    fname = uvcdf(u, v, t)    
-                    # Run OpenDrift
-                    fout = Deenish_opendrift(fname, t)
-                    # Get displacements around starting position
-                    Dx, Dy = get_displacements(fout)                                          
-                    # Plot surface currents
-                    arrows = Plot.Plot_Arrows(u, v, t)                                                           
-                    # Plot displacements
-                    circles = Plot.Plot_Displacements(u, v, Dx, Dy, t)
-                    # Concatenate vertically
-                    currents = get_concat_v(arrows, circles)
-                    
-                    currents = Plot.add_border(currents)
-                    currents.save('static/Deenish-Currents.jpg', quality=95)   
-                    images.append('Deenish-Currents.jpg')
-               
+                    # Get date selection as datetime
+                    fecha = datetime.strptime(datestring, '%Y-%m-%d')   
+
+                    for variable in user_variables:         
+                        var = variable.replace(' ', '-')
+                        # Get currents for the selected date
+                        u, v, t = vector_request(DBO, fecha, variable)      
+                        # Create NetCDF for OpenDrift
+                        fname = uvcdf(u, v, t, var)    
+                        # Run OpenDrift
+                        fout = Deenish_opendrift(fname, t, var)
+                        # Get displacements around starting position
+                        Dx, Dy = get_displacements(fout)                                          
+                        # Plot surface currents
+                        arrows = Plot.Plot_Arrows(u, v, t, variable)                                                           
+                        # Plot displacements
+                        circles = Plot.Plot_Displacements(u, v, Dx, Dy, t)
+                        # Concatenate vertically
+                        currents = Plot.add_border(get_concat_v(arrows, circles))                    
+                        # Save figure
+                        currents.save(f'static/Deenish-{var}.jpg', quality=95)   
+                        # Add new figure to figure list
+                        images.append(f'Deenish-{var}.jpg')
+                   
                 ''' Reload page with new figures '''                
                 return render_template('index.html', times=times, graph=images,
                    time=datestring, layers=layers, variables=variables)                 
@@ -97,10 +105,10 @@ def web(DBO):
                     return send_file(f, as_attachment=True)
                 else:
                     return render_template('index.html', times=times, graph=['blank.png'],
-                        arrows='blank.png', time0=times[-1], time1=times[-1], 
-                        time='', layers=layers, variables=variables) 
+                        time0=times[-1], time1=times[-1], time='', 
+                        layers=layers, variables=variables) 
          
-        else:
+        else:          
             return render_template('index.html', times=times, graph=['blank.png'],
                 arrows='blank.png', time0=times[-1], time1=times[-1], 
                 time='', layers=layers, variables=variables) 
@@ -247,8 +255,8 @@ def fix_times(DBO, t0, t1):
     return t0, t1
 
 
-def surface_currents_request(DBO, fecha):
-    ''' Subset time and u, v components of current velocity for the selected date '''
+def vector_request(DBO, fecha, variable):
+    ''' Subset time and u, v components of velocity for the selected date '''
     
     # Get selected date as a timezone-aware datetime
     fecha = timezone('UTC').localize(fecha)
@@ -259,7 +267,14 @@ def surface_currents_request(DBO, fecha):
     # Get times for the selected date
     t = DBO.buoy['time'][index : index + 145]    
     # Subset u, v components of velocity for the selected date
-    u, v = DBO.buoy['u'][index : index + 145], DBO.buoy['v'][index : index + 145]
+    if 'Surface' in variable:
+        u, v = DBO.buoy['u0'][index : index + 145], DBO.buoy['v0'][index : index + 145]
+    elif 'Mid-water' in variable:
+        u, v = DBO.buoy['umid'][index : index + 145], DBO.buoy['vmid'][index : index + 145]
+    elif 'Seabed' in variable:
+        u, v = DBO.buoy['ubot'][index : index + 145], DBO.buoy['vbot'][index : index + 145]
+    elif 'Wind' in variable:
+        u, v = DBO.buoy['uwind'][index : index + 145], DBO.buoy['vwind'][index : index + 145]
     
     return u, v, t
 
@@ -334,7 +349,7 @@ def merge():
     
     return name
 
-def uvcdf(u, v, t):
+def uvcdf(u, v, t, var):
     ''' Create simple NetCDF to extend buoy currents to a wider area used as
         input for the OpenDrift run. This is a preprocessing step before 
         producing the progressive vector diagram. '''
@@ -345,7 +360,7 @@ def uvcdf(u, v, t):
     # Artificial, extended domain
     x0, x1, y0, y1 = -12, -8, 50, 53
         
-    fileOut = 'uv-' + t[0].strftime('%Y%m%d') + '.nc'
+    fileOut = os.environ.get('static') + 'uv-' + t[0].strftime('%Y%m%d') + f'-{var}.nc'
     with Dataset(fileOut, 'w', format='NETCDF4') as nc:
         
         # Create NetCDF dimensions
@@ -384,7 +399,7 @@ def uvcdf(u, v, t):
         
         return fileOut
     
-def Deenish_opendrift(file, time):
+def Deenish_opendrift(file, time, var):
     # Artificial, extended domain
     x0, x1, y0, y1 = -12, -8, 50, 53
     
@@ -392,9 +407,9 @@ def Deenish_opendrift(file, time):
     extent=[x0, y0,  # min. longitude, min. latitude, 
             x1, y1]) # max. longitude, max.latitude
     
-    fileOut = 'OpenDrift-' + time[0].strftime('%Y%m%d') + '.nc' 
+    fileOut = os.environ.get('static') + 'OpenDrift-' + time[0].strftime('%Y%m%d') + f'-{var}.nc' 
     
-    x, y = -10.2122, 51.7431 # longitude and latitude
+    x, y = float(os.environ.get('lon')), float(os.environ.get('lat'))
     
     o = OceanDrift(loglevel=50)
     
@@ -404,7 +419,7 @@ def Deenish_opendrift(file, time):
     
     o.set_config('general:coastline_action', 'none')
     
-    ''' Seed elements '''
+    ''' Seed elements '''   
     o.seed_elements(lon=x, lat=y, time=make_naive(time[0], time[0].tzinfo))
                   
     
