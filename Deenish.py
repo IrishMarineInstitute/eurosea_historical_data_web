@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from Climatology import climatology
 from dateutil.parser import parse
 from paramiko import SSHException
 from numpy import nan as NaN
@@ -10,6 +11,19 @@ import pysftp
 from math import sin, cos, pi
 
 DEG2RAD = pi/180 # Conversion factor from degrees to radians
+
+class Deenish_Buoy_Observatory:
+    
+    def __init__(self):
+        
+        self.buoy, self.NWSHELF = Deenish()   
+                   
+        ''' Read climatology '''
+        self.clim_x, self.clim_y, self.clim_time, self.seas, self.pc90, \
+        self.Deenish_time, self.Deenish_seas, self.Deenish_pc90 = \
+        climatology(self, os.environ.get('DATA') + '/MUR-Climatology.nc', 
+                    float(os.environ.get('lon')), 
+                    float(os.environ.get('lat')))  
 
 def Deenish():
     
@@ -81,6 +95,15 @@ def Deenish():
     #     'cmems_obs-oc_atl_bgc-plankton_', var['time'])
         
     return var, NWSHELF # OCEANCOLOUR
+
+def get_time_list(DBO):
+    # Get list of dates available in the buoy dataset
+    t0, t1 = DBO.buoy['time'][0].date(), DBO.buoy['time'][-1].date()
+    times = []
+    while t0 < t1:
+        times.append(t0)
+        t0 += timedelta(days=1)
+    times += [t0, '']
 
 def quality_control(var):
     
@@ -207,7 +230,7 @@ def update_local_directory(localpath, extension):
     for file in os.listdir(localpath):
         if file.endswith(extension):
             local.append(file)
-    return local
+    return sorted(local)
          
 def xml_file_download(local, localpath, host, user, pswd):
     ''' Download *.xml files to local path using SFTP credentials '''
