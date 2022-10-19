@@ -2,6 +2,5 @@ version: '0.1'
 services:
   myservice:
     build:
-      context: Dockerfile
       dockerfile: Dockerfile
     image: eurosea/latest
