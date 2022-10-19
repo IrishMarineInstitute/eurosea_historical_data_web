@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    
+    <title>Deenish Buoy</title>
+    
+    <style type="text/css">
+      #platformRating form,
+      #platformRating select,
+      #platformRating p {
+        display: inline;
+        vertical-align: centre;
+        line-height: 28px;
+      }  
+      
+      h1 {text-align: center;}
+      
+    </style>    
+    
+</head>
+
+<body>
+        
+    <h1> Deenish Island Data Portal </h1>    
+    
+    <p><a href="{{ url_for('swirl') }}">Link to Southwest of Ireland Remote-Sensing Historical Data</a></p>
+        
+    <img src="{{url_for('static', filename='boya.jpg')}}" />
+    
+    <p style="font-family: Arial">Welcome to the EuroSea WP6 Deenish Island Data Portal.
+    The Deenish Island salmon farm is located at 51°44'19''N 10°12'45''W in
+    the Southwest coast of Ireland. In April 2022, a monitoring station was 
+    deployed at the farm to record the environmental conditions.
+    Here, you can download and display the sampled data. Available parameters are
+    seawater temperature, salinity, current velocity, pH, dissolved oxygen 
+    saturation and chlorophyll-a concentration. Just enter the starting and end 
+    times (UTC) of interest and click the 'Display' button. Click 'Download' to
+    get a file with the data. 
+    This is a EuroSea partnership between the Marine Institute, the Spanish National Research Council (CSIC), Mowi Ireland (formerly Marine Harvest) and Xylem / Aanderaa Data Instrument.
+
+    This part of the Marine Observatory work is being developed within the WP6 Ocean Health Demonstrator of  the EuroSea project “Improving and integrating the European Ocean Observing and Forecasting System”. This project is funded by the EU Horizon 2020 research and innovation programme under grant agreement No 862626 </p>
+        
+    <div style="float: left;">
+    
+      <div id="platformRating">
+      
+        <form method="POST" action="/">
+               
+            <p style="margin-right: 5px"> Start: </p>     
+            <select name="times0" method="GET"> 
+                {% for time in times %} 
+                <option value= "{{time}}" SELECTED>{{time}}</option>" 
+                {% endfor %} 
+                <option selected="selected">
+                    {{time0}}
+                </option>
+            </select>
+        
+            <p style="margin-right: 5px; margin-left: 20px"> End: </p>   
+            <select name="times1" method="GET"> 
+                {% for time in times %} 
+                <option value= "{{time}}" SELECTED>{{time}}</option>" 
+                {% endfor %} 
+                <option selected="selected">
+                    {{time1}}
+                </option>
+            </select>
+        
+            <input type="submit" value="Display"  name="Display"  style="margin-left: 20px" />
+            
+            <input type="submit" value="Download" name="Download" style="margin-left: 10px" />
+                                   
+            <img src="{{url_for('static', filename=graph)}}" />
+            
+            
+        </form>
+       
+      </div>
+        
+    </div>
+        
+    
+</body>
+
+</html>
